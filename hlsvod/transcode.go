@@ -83,6 +83,7 @@ func TranscodeSegments(ctx context.Context, ffmpegBinary string, config Transcod
 
 	// Input specs
 	args = append(args, []string{
+		"-autorotate", "0", // consistent behavior
 		"-i", config.InputFilePath, // Input file
 		"-to", fmt.Sprintf("%.6f", endAt),
 		"-copyts", // So the "-to" refers to the original TS
