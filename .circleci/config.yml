@@ -25,7 +25,7 @@ jobs:
       - checkout
 
       - run: |
-          docker run -it --rm -v "$PWD":/work -w /work golang:1.19-alpine bash -c 'go build -ldflags="-s -w"'
+          docker run -it --rm -v "$PWD":/work -w /work golang:1.19-alpine sh -c 'go build -ldflags="-s -w"'
           mv go-transcode go-transcode-aarch64-musl
 
       - persist_to_workspace:
