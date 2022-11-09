@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path"
 	"strings"
@@ -69,6 +70,17 @@ func TranscodeSegments(ctx context.Context, ffmpegBinary string, config Transcod
 		}...)
 	}
 
+	VAAPI := os.Getenv("VAAPI") == "1"
+	CV := "libx264"
+	VF := ""
+
+	if VAAPI {
+		CV = "h264_vaapi"
+		VF = "scale_vaapi=w=SCALE_WIDTH:h=SCALE_HEIGHT:force_original_aspect_ratio=decrease"
+		extra := strings.Split("-hwaccel vaapi -hwaccel_device /dev/dri/renderD128 -hwaccel_output_format vaapi", " ")
+		args = append(args, extra...)
+	}
+
 	// Input specs
 	args = append(args, []string{
 		"-i", config.InputFilePath, // Input file
@@ -83,7 +95,10 @@ func TranscodeSegments(ctx context.Context, ffmpegBinary string, config Transcod
 		profile := config.VideoProfile
 
 		var scale string
-		if profile.Width >= profile.Height {
+		if VAAPI {
+			scale = strings.Replace(VF, "SCALE_WIDTH", fmt.Sprintf("%d", profile.Width), 1)
+			scale = strings.Replace(scale, "SCALE_HEIGHT", fmt.Sprintf("%d", profile.Height), 1)
+		} else if profile.Width >= profile.Height {
 			scale = fmt.Sprintf("scale=-2:%d", profile.Height)
 		} else {
 			scale = fmt.Sprintf("scale=%d:-2", profile.Width)
@@ -91,12 +106,17 @@ func TranscodeSegments(ctx context.Context, ffmpegBinary string, config Transcod
 
 		args = append(args, []string{
 			"-vf", scale,
-			"-c:v", "libx264",
-			"-preset", "faster",
+			"-c:v", CV,
 			"-profile:v", "high",
-			"-level:v", "4.0",
 			"-b:v", fmt.Sprintf("%dk", profile.Bitrate),
 		}...)
+
+		if !VAAPI {
+			args = append(args, []string{
+				"-preset", "faster",
+				"-level:v", "4.0",
+			}...)
+		}
 	}
 
 	// Audio specs
